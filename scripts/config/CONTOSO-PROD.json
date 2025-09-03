@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "contentVersion": "1.0.0.0",
+  "ConfigurationName": "PROD",
+  "ApplicationName": "contoso",
+  "Settings": {
+    "SiteUrl": "https://extranet.contoso.com",
+    "SqlConnectionString": "data Source=localhost;Integrated Security=SSPI;Initial Catalog=aspnetdb",
+    "SqlMembershipProviderName": "fbamembershipprovider",
+    "SqlQuery": "",
+    "CreateIfMissing": true,
+    "UpdateSiteUserInfo": true,
+    "IncludeLockedOut": false,
+    "IncludeNotApproved": false
+  }
+}
