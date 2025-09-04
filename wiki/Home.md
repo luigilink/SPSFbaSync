@@ -20,4 +20,5 @@ SPSFbaSync is a PowerShell script to Synchronize user information (email, displa
 For details on usage, configuration, and parameters, explore the links below:
 
 - [Getting Started](./Getting-Started)
+- [Configuration](./Configuration)
 - [Usage](./Usage)

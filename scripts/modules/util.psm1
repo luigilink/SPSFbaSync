@@ -155,3 +155,38 @@ Exception: $($_.Exception.Message)
         }
     }
 }
+
+function Set-USPUserProfileProperty {
+    param(
+        [Parameter(Mandatory = $true)]
+        [Microsoft.Office.Server.UserProfiles.UserProfile]
+        $UserProfile,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]
+        $PropertyInternalName,
+
+        [Parameter()]
+        [System.String]
+        $DesiredValue
+    )
+    try {
+        $currentValue = [string]$UserProfile[$PropertyInternalName].Value
+        if ([string]::IsNullOrWhiteSpace($DesiredValue)) { return $false }
+        if ($currentValue -ne $DesiredValue) {
+            $UserProfile[$PropertyInternalName].Value = $DesiredValue
+            return $true
+        }
+        return $false
+    }
+    catch {
+        $catchMessage = @"
+An error occurred while setting the UserProfile Property.
+PropertyInternalName: $($PropertyInternalName)
+CurrentValue: $($currentValue)
+DesiredValue: $($DesiredValue)
+Exception: $($_.Exception.Message)
+"@
+        Write-Error -Message $catchMessage # Handle any errors during task removal
+    }
+}

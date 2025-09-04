@@ -95,15 +95,15 @@ try {
   if (Test-Path $ConfigFile) {
     $jsonEnvCfg = Get-Content $ConfigFile | ConvertFrom-Json
     $Application = $jsonEnvCfg.ApplicationName
-    $Environment = $jsonEnvCfg.ConfigurationName
-    $SiteUrl = $jsonEnvCfg.SiteUrl
-    $SqlConnectionString = $jsonEnvCfg.SqlConnectionString
-    $MembershipProviderName = $jsonEnvCfg.MembershipProviderName
-    $SqlQuery = $jsonEnvCfg.SqlQuery
-    $CreateIfMissing = $jsonEnvCfg.CreateIfMissing
-    $UpdateSiteUserInfo = $jsonEnvCfg.UpdateSiteUserInfo
-    $IncludeLockedOut = $jsonEnvCfg.IncludeLockedOut
-    $IncludeNotApproved = $jsonEnvCfg.IncludeNotApproved
+    $ConfigName = $jsonEnvCfg.ConfigurationName
+    $spSiteUrl = $jsonEnvCfg.Settings.SiteUrl
+    $SqlConnectionString = $jsonEnvCfg.Settings.SqlConnectionString
+    $MembershipProviderName = $jsonEnvCfg.Settings.SqlMembershipProviderName
+    $SqlQuery = $jsonEnvCfg.Settings.SqlQuery
+    $CreateIfMissing = $jsonEnvCfg.Settings.CreateIfMissing
+    $UpdateUserInfoList = $jsonEnvCfg.Settings.UpdateUserInfoList
+    $IncludeLockedOut = $jsonEnvCfg.Settings.IncludeLockedOut
+    $IncludeNotApproved = $jsonEnvCfg.Settings.IncludeNotApproved
   }
   else {
     Throw "Configuration file '$ConfigFile' not found."
@@ -117,7 +117,7 @@ catch {
 # Define variables
 $SPSFbaSyncVersion = '1.0.0'
 $getDateFormatted = Get-Date -Format yyyy-MM-dd_H-mm
-$spsFbaSyncFileName = "$($Application)-$($Environment)_$($getDateFormatted)"
+$spsFbaSyncFileName = "$($Application)-$($ConfigName)_$($getDateFormatted)"
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $pathLogsFolder = Join-Path -Path $PSScriptRoot -ChildPath 'Logs'
 $pathResultFolder = Join-Path -Path $PSScriptRoot -ChildPath 'Results'
@@ -130,9 +130,16 @@ if (-Not (Test-Path -Path $pathResultFolder)) {
   New-Item -ItemType Directory -Path $pathResultFolder -Force
 }
 
+# Initialize jSON Object
+New-Variable -Name jsonObject `
+  -Description 'jSON object variable' `
+  -Option AllScope `
+  -Force
+$jsonObject = [PSCustomObject]@{}
+
 # Define log and result file paths
 $pathLogFile = Join-Path -Path $pathLogsFolder -ChildPath ($spsFbaSyncFileName + '.log')
-$resultFile = Join-Path -Path $pathResultFolder -ChildPath ($spsFbaSyncFileName + '.csv')
+$resultFile = Join-Path -Path $pathResultFolder -ChildPath ($spsFbaSyncFileName + '.json')
 $DateStarted = Get-Date
 $psVersion = $PSVersionTable.PSVersion.ToString()
 
@@ -159,7 +166,7 @@ switch ($Action) {
   'Uninstall' {
     # Remove scheduled Task for Update Full Script
     try {
-      Write-Output 'Removing Scheduled Task SPSFbaSync in SharePoint Task Path'
+      Write-Verbose -Message 'Removing Scheduled Task SPSFbaSync in SharePoint Task Path'
       Remove-SPSScheduledTask -Name 'SPSFbaSync'
     }
     catch {
@@ -182,7 +189,7 @@ Exception: $_
       $UserName = $InstallAccount.UserName
       $Password = $InstallAccount.GetNetworkCredential().Password
       $currentDomain = 'LDAP://' + ([ADSI]'').distinguishedName
-      Write-Output "Checking Account `"$UserName`" ..."
+      Write-Verbose -Message "Checking Account `"$UserName`" ..."
       $dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain, $UserName, $Password)
       if ($null -eq $dom.Path) {
         Write-Warning -Message "Password Invalid for user:`"$UserName`""
@@ -194,7 +201,7 @@ Exception: $_
         try {
           # Initialize ActionArguments parameter
           $ActionArguments = "-ExecutionPolicy Bypass -File `"$($fullScriptPath)`" -ConfigFile `"$($ConfigFile)`" -Verbose"
-          Write-Output 'Adding Scheduled Task SPSFbaSync in SharePoint Task Path'
+          Write-Verbose -Message 'Adding Scheduled Task SPSFbaSync in SharePoint Task Path'
           Add-SPSScheduledTask -Name 'SPSFbaSync' `
             -Description 'Scheduled Task for Update SharePoint Server after installation of cumulative update' `
             -ActionArguments $ActionArguments `
@@ -214,7 +221,7 @@ Exception: $_
   }
   Default {
     # Validate critical parameters
-    if ([string]::IsNullOrWhiteSpace($SiteUrl)) {
+    if ([string]::IsNullOrWhiteSpace($spSiteUrl)) {
       Write-Error -Message "SiteUrl is not defined in the configuration file."
       Stop-Transcript
       Exit
@@ -232,7 +239,7 @@ Exception: $_
     # 1. Load SharePoint Powershell Snapin or Import-Module
     try {
       $installedVersion = Get-SPSInstalledProductVersion
-      Write-Output "Installed SharePoint Product Version: $($installedVersion)"
+      Write-Verbose -Message "Installed SharePoint Product Version: $($installedVersion)"
       if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
         if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
           Write-Verbose -Message "Loading SharePoint PowerShell snap-in..."
@@ -294,15 +301,15 @@ $SqlQuery
 "@
 
     # 4 Query membership database
-    Write-Verbose -Message "Connecting to SQL and executing query with connection string: $SqlConnectionString"
-    $dt = New-Object System.Data.DataTable
-    $conn = New-Object System.Data.SqlClient.SqlConnection $SqlConnectionString
+    Write-Verbose -Message "Connecting to SQL and executing SQL Query with connection string: $SqlConnectionString"
+    $dataTable = New-Object System.Data.DataTable
+    $sqlConnect = New-Object System.Data.SqlClient.SqlConnection $SqlConnectionString
     try {
-      $cmd = $conn.CreateCommand()
+      $cmd = $sqlConnect.CreateCommand()
       $cmd.CommandText = $SqlQuery
-      $conn.Open()
+      $sqlConnect.Open()
       $da = New-Object System.Data.SqlClient.SqlDataAdapter $cmd
-      [void]$da.Fill($dt)
+      [void]$da.Fill($dataTable)
     }
     catch {
       Write-Error -Message @"
@@ -314,21 +321,21 @@ Exception: $($_.Exception.Message)
       Exit
     }
     finally {
-      if ($conn.State -ne 'Closed') { $conn.Close() }
-      $conn.Dispose()
+      if ($sqlConnect.State -ne 'Closed') { $sqlConnect.Close() }
+      $sqlConnect.Dispose()
     }
-    if ($dt.Rows.Count -eq 0) {
+    if ($dataTable.Rows.Count -eq 0) {
       Write-Warning "No rows returned from SQL. Check your query/filters. Script will exit."
       Stop-Transcript
       Exit
     }
 
     # 5. Get SharePoint Site collecion and User Profile Manager context
-    Write-Verbose -Message "Connecting to SharePoint site: $SiteUrl"
+    Write-Verbose -Message "Connecting to SharePoint site: $spSiteUrl"
     try {
-      $site = Get-SPSite $SiteUrl -ErrorAction SilentlyContinue
+      $site = Get-SPSite $spSiteUrl -ErrorAction SilentlyContinue
       if ($null -eq $site) {
-        Write-Warning "Site collection not found at URL: $SiteUrl. Please check the SiteUrl parameter in the configuration file."
+        Write-Warning "Root Site collection not found at URL: $spSiteUrl. Please check the SiteUrl parameter in the configuration file."
         Stop-Transcript
         Exit
       }
@@ -339,121 +346,116 @@ Exception: $($_.Exception.Message)
     }
     catch {
       Write-Error -Message @"
-Failed accessing SharePoint site or User Profile Service Application at URL: $SiteUrl
+Failed accessing SharePoint site or User Profile Service Application at URL: $spSiteUrl
 Exception: $($_.Exception.Message)
 "@
       Stop-Transcript
       Exit
     }
-    $log = New-Object System.Collections.Generic.List[psobject]
 
-    function Set-IfChanged {
-      param(
-        [Microsoft.Office.Server.UserProfiles.UserProfile]$Profile,
-        [string]$PropertyInternalName,
-        [string]$NewValue
-      )
-      $current = [string]$Profile[$PropertyInternalName].Value
-      if ([string]::IsNullOrWhiteSpace($NewValue)) { return $false }
-      if ($current -ne $NewValue) {
-        $Profile[$PropertyInternalName].Value = $NewValue
-        return $true
-      }
-      return $false
+    # 6. Loop through SQL results and update UPS properties (and optionally UIL)
+    # Initialize class UserProfileInformation
+    class UserProfileInformation {
+      [System.String]$Login
+      [System.String]$UserName
+      [System.String]$Email
+      [System.String]$FirstName
+      [System.String]$LastName
+      [System.String]$Display
+      [System.String]$Status
+      [System.String]$Notes
     }
+    $tbUserProfileInformation = New-Object -TypeName System.Collections.ArrayList
+    Write-Verbose -Message "Processing $($dataTable.Rows.Count) users from SQL results..."
+    foreach ($row in $dataTable.Rows) {
+      $userName = [string]$row.UserName
+      $email = [string]$row.Email
+      $first = if ($dataTable.Columns.Contains("FirstName")) { [string]$row.FirstName }  else { $null }
+      $last = if ($dataTable.Columns.Contains("LastName")) { [string]$row.LastName }   else { $null }
+      $display = if ($dataTable.Columns.Contains("DisplayName") -and $row.DisplayName) { [string]$row.DisplayName } else { $userName }
 
-    try {
-      foreach ($row in $dt.Rows) {
-        $userName = [string]$row.UserName
-        $email = [string]$row.Email
-        $first = if ($dt.Columns.Contains("FirstName")) { [string]$row.FirstName }  else { $null }
-        $last = if ($dt.Columns.Contains("LastName")) { [string]$row.LastName }   else { $null }
-        $display = if ($dt.Columns.Contains("DisplayName") -and $row.DisplayName) { [string]$row.DisplayName } else { $userName }
+      # FBA claim format: i:0#.f|<membershipProvider>|<userName>
+      Write-Verbose -Message "Processing user: $userName"
+      $login = "i:0#.f|$MembershipProviderName|$userName"
+      $status = "Skipped"
+      $notes = ""
 
-        # FBA claim format: i:0#.f|<membershipProvider>|<userName>
-        $login = "i:0#.f|$MembershipProviderName|$userName"
-
-        $status = "Skipped"
-        $notes = ""
-
-        try {
-          $profile = $null
-          if ($upm.UserExists($login)) {
-            $profile = $upm.GetUserProfile($login)
+      try {
+        if ($upm.UserExists($login)) {
+          $UserProfile = $upm.GetUserProfile($login)
+        }
+        elseif ($CreateIfMissing) {
+          if ($PSCmdlet.ShouldProcess($login, "Create UPS profile")) {
+            $UserProfile = $upm.CreateUserProfile($login)
           }
-          elseif ($CreateIfMissing) {
-            if ($PSCmdlet.ShouldProcess($login, "Create UPS profile")) {
-              $profile = $upm.CreateUserProfile($login)
+        }
+        else {
+          $status = "MissingProfile"
+          $notes = "UPS profile not found; use -CreateIfMissing to auto-provision."
+        }
+
+        if ($null -ne $UserProfile) {
+          $changed = $false
+          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "WorkEmail"     -DesiredValue $email) -or $changed
+          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "FirstName"     -DesiredValue $first) -or $changed
+          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "LastName"      -DesiredValue $last) -or $changed
+          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "PreferredName" -DesiredValue $display) -or $changed
+
+          if ($changed) {
+            if ($PSCmdlet.ShouldProcess($login, "Commit UPS changes")) {
+              $UserProfile.Commit()
+              $status = "Updated"
             }
           }
           else {
-            $status = "MissingProfile"
-            $notes = "UPS profile not found; use -CreateIfMissing to auto-provision."
+            $status = "NoChange"
           }
 
-          if ($profile -ne $null) {
-            $changed = $false
-            $changed = (Set-IfChanged -Profile $profile -PropertyInternalName "WorkEmail"     -NewValue $email) -or $changed
-            $changed = (Set-IfChanged -Profile $profile -PropertyInternalName "FirstName"     -NewValue $first) -or $changed
-            $changed = (Set-IfChanged -Profile $profile -PropertyInternalName "LastName"      -NewValue $last) -or $changed
-            $changed = (Set-IfChanged -Profile $profile -PropertyInternalName "PreferredName" -NewValue $display) -or $changed
-
-            if ($changed) {
-              if ($PSCmdlet.ShouldProcess($login, "Commit UPS changes")) {
-                $profile.Commit()
-                $status = "Updated"
-              }
-            }
-            else {
-              $status = "NoChange"
-            }
-
-            if ($UpdateSiteUserInfo -and $email) {
-              $web = $site.RootWeb
-              try {
-                $spUser = $web.EnsureUser($login)
-                if ($spUser -and ($spUser.Email -ne $email -or $spUser.Name -ne $display)) {
-                  if ($PSCmdlet.ShouldProcess($login, "Update SPUser (UIL)")) {
-                    Set-SPUser -Identity $login -Web $web.Url -Email $email -DisplayName $display -ErrorAction Stop | Out-Null
-                  }
+          if ($UpdateUserInfoList -and $email) {
+            $web = $site.RootWeb
+            try {
+              $spUser = $web.EnsureUser($login)
+              if ($spUser -and ($spUser.Email -ne $email -or $spUser.Name -ne $display)) {
+                if ($PSCmdlet.ShouldProcess($login, "Update SPUser (UIL)")) {
+                  Set-SPUser -Identity $login -Web $web.Url -Email $email -DisplayName $display -ErrorAction Stop | Out-Null
                 }
               }
-              catch {
-                $status = "UpdatedWithUILWarning"
-                $notes = "UPS ok; UIL update failed: $($_.Exception.Message)"
-              }
-              finally {
-                if ($web) { $web.Dispose() }
-              }
+            }
+            catch {
+              $status = "UpdatedWithUILWarning"
+              $notes = "UPS ok; UIL update failed: $($_.Exception.Message)"
+            }
+            finally {
+              if ($web) { $web.Dispose() }
             }
           }
         }
-        catch {
-          $status = "Error"
-          $notes = $_.Exception.Message
-        }
-        finally {
-          $log.Add([pscustomobject]@{
-              Login     = $login
-              UserName  = $userName
-              Email     = $email
-              FirstName = $first
-              LastName  = $last
-              Display   = $display
-              Status    = $status
-              Notes     = $notes
-            })
-        }
+      }
+      catch {
+        $status = "Error"
+        $notes = $_.Exception.Message
+      }
+      finally {
+        [void]$tbUserProfileInformation.Add([UserProfileInformation]@{
+            Login     = $login
+            UserName  = $userName
+            Email     = $email
+            FirstName = $first
+            LastName  = $last
+            Display   = $display
+            Status    = $status
+            Notes     = $notes
+          })
       }
     }
-    finally {
-      if ($site) { $site.Dispose() }
-    }
-
-    $log | Export-Csv -NoTypeInformation -Encoding UTF8 -Path $resultFile
-    Write-Host "Completed. Result written to: $resultFile"
   }
 }
+
+$jsonObject | Add-Member -MemberType NoteProperty `
+  -Name UserProfileInformation `
+  -Value $tbUserProfileInformation
+$jsonObject | ConvertTo-Json | Set-Content -Path $resultFile -Force
+Write-Verbose -Message "Completed. Result written to: $resultFile"
 #endregion
 
 # Clean-Up
