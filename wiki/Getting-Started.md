@@ -2,7 +2,9 @@
 
 ## Prerequisites
 
-- PowerShell 5.0 or later
+- PowerShell 5.1 or later.
+- Necessary permissions to access the SharePoint Farm.
+- Ensure the script is placed in a directory accessible by the user.
 - Administrative privileges on the SharePoint Server
 - SharePoint farm with User Profile Service Application configured.
 - SQL Membership Provider database accessible
@@ -11,7 +13,7 @@
 ## Installation
 
 1. [Download the latest release](https://github.com/luigilink/SPSFbaSync/releases/latest) and unzip to a directory on your SharePoint Server.
-2. Prepare your JSON configuration file with the required Cumulative Updates and farm details.
+2. Prepare your JSON configuration file with the required SqlMembershipProvider and farm details.
 3. Add the script in task scheduler by running the following command:
 
 ```powershell

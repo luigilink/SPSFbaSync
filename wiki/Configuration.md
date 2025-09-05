@@ -23,8 +23,23 @@ To customize the script for your environment, prepare a JSON configuration file.
 
 ## Configuration and Application
 
-`ConfigurationName`: Populates the Environment PowerShell variable.
-`ApplicationName`: Populates the Application PowerShell variable.
+- `ConfigurationName`: Populates the Environment PowerShell variable.
+- `ApplicationName`: Populates the Application PowerShell variable.
+
+## Settings
+
+The Settings section defines parameters for environment setup:
+
+| Parameter                   | Description                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `SiteUrl`                   | Target site URL.                                                                  |
+| `SqlConnectionString`       | Connection string for SQL database access.                                        |
+| `SqlMembershipProviderName` | Name of the SQL membership provider.                                              |
+| `SqlQuery`                  | Optional SQL query to execute.                                                    |
+| `CreateIfMissing`           | If true, add missing user profiles in User Profile Service Application.           |
+| `UpdateUserInfoList`        | If true, updates the user info list in SharePoint Site.                           |
+| `IncludeLockedOut`          | If true, includes locked-out users from SqlMembershipProvider Database.           |
+| `IncludeNotApproved`        | If true, includes users who are not approved from SqlMembershipProvider Database. |
 
 ## Next Step
 
