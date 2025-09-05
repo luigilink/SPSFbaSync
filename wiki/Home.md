@@ -1,6 +1,6 @@
 # SPSFbaSync - SharePoint Cumulative Update Tool
 
-SPSFbaSync is a PowerShell script to Synchronize user information (email, display name, etc.) from a SQL Membership Provider (Forms Based Authentication) database to SharePoint User Profile Service.
+SPSFbaSync is a PowerShell script to Synchronize user information (email, display name, etc.) from a SQL Membership Provider (Forms Based Authentication) database to SharePoint User Profile Service Application.
 
 ## Key Features
 

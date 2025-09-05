@@ -70,16 +70,16 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "SPSFbaSync script running on $env:COMPUTERNAME"
 
 # Define the path to the helper module
-$script:HelperModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'modules'
+$helperModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'modules'
 
 # Import the helper module
 try {
-  Import-Module -Name (Join-Path -Path $script:HelperModulePath -ChildPath 'util.psm1') -Force
+  Import-Module -Name (Join-Path -Path $helperModulePath -ChildPath 'util.psm1') -Force
 }
 catch {
   # Handle errors during Import of helper module
   Write-Error -Message @"
-Failed to import helper module from path: $($script:HelperModulePath)
+Failed to import helper module from path: $($helperModulePath)
 Exception: $_
 "@
   Exit

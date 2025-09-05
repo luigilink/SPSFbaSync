@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add release.yml file
 - Add scripts folder with first version of SPSFbaSync
 - Wiki Documentation in repository - Add :
+  - wiki/Configuration.md
   - wiki/Getting-Started.md
   - wiki/Home.md
   - wiki/Usage.md
