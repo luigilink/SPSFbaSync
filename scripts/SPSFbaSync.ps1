@@ -37,8 +37,8 @@
   .NOTES
   FileName:	SPSFbaSync.ps1
   Author:		Jean-Cyril DROUHIN
-  Date:		September 03, 2025
-  Version:	1.0.0
+  Date:		September 19, 2025
+  Version:	1.1.0
 
   .LINK
   https://spjc.fr/
@@ -96,7 +96,7 @@ try {
     $jsonEnvCfg = Get-Content $ConfigFile | ConvertFrom-Json
     $Application = $jsonEnvCfg.ApplicationName
     $ConfigName = $jsonEnvCfg.ConfigurationName
-    $spSiteUrl = $jsonEnvCfg.Settings.SiteUrl
+    $spWebAppUrl = $jsonEnvCfg.Settings.WebApplicationUrl
     $SqlConnectionString = $jsonEnvCfg.Settings.SqlConnectionString
     $MembershipProviderName = $jsonEnvCfg.Settings.SqlMembershipProviderName
     $SqlQuery = $jsonEnvCfg.Settings.SqlQuery
@@ -115,7 +115,7 @@ catch {
 }
 
 # Define variables
-$SPSFbaSyncVersion = '1.0.0'
+$SPSFbaSyncVersion = '1.1.0'
 $getDateFormatted = Get-Date -Format yyyy-MM-dd_H-mm
 $spsFbaSyncFileName = "$($Application)-$($ConfigName)_$($getDateFormatted)"
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
@@ -221,8 +221,8 @@ Exception: $_
   }
   Default {
     # Validate critical parameters
-    if ([string]::IsNullOrWhiteSpace($spSiteUrl)) {
-      Write-Error -Message "SiteUrl is not defined in the configuration file."
+    if ([string]::IsNullOrWhiteSpace($spWebAppUrl)) {
+      Write-Error -Message "WebApplicationUrl is not defined in the configuration file."
       Stop-Transcript
       Exit
     }
@@ -331,11 +331,11 @@ Exception: $($_.Exception.Message)
     }
 
     # 5. Get SharePoint Site collecion and User Profile Manager context
-    Write-Verbose -Message "Connecting to SharePoint site: $spSiteUrl"
+    Write-Verbose -Message "Connecting to SharePoint site: $spWebAppUrl"
     try {
-      $site = Get-SPSite $spSiteUrl -ErrorAction SilentlyContinue
+      $site = Get-SPSite $spWebAppUrl -ErrorAction SilentlyContinue
       if ($null -eq $site) {
-        Write-Warning "Root Site collection not found at URL: $spSiteUrl. Please check the SiteUrl parameter in the configuration file."
+        Write-Warning "Root Site collection not found at URL: $spWebAppUrl. Please check the WebApplicationUrl parameter in the configuration file."
         Stop-Transcript
         Exit
       }
@@ -346,7 +346,7 @@ Exception: $($_.Exception.Message)
     }
     catch {
       Write-Error -Message @"
-Failed accessing SharePoint site or User Profile Service Application at URL: $spSiteUrl
+Failed accessing SharePoint site or User Profile Service Application at URL: $spWebAppUrl
 Exception: $($_.Exception.Message)
 "@
       Stop-Transcript
@@ -410,25 +410,6 @@ Exception: $($_.Exception.Message)
           else {
             $status = "NoChange"
           }
-
-          if ($UpdateUserInfoList -and $email) {
-            $web = $site.RootWeb
-            try {
-              $spUser = $web.EnsureUser($login)
-              if ($spUser -and ($spUser.Email -ne $email -or $spUser.Name -ne $display)) {
-                if ($PSCmdlet.ShouldProcess($login, "Update SPUser (UIL)")) {
-                  Set-SPUser -Identity $login -Web $web.Url -Email $email -DisplayName $display -ErrorAction Stop | Out-Null
-                }
-              }
-            }
-            catch {
-              $status = "UpdatedWithUILWarning"
-              $notes = "UPS ok; UIL update failed: $($_.Exception.Message)"
-            }
-            finally {
-              if ($web) { $web.Dispose() }
-            }
-          }
         }
       }
       catch {
@@ -446,6 +427,70 @@ Exception: $($_.Exception.Message)
             Status    = $status
             Notes     = $notes
           })
+      }
+    }
+    if ($UpdateUserInfoList) {
+      Write-Verbose -Message "Updating User Information List (SPUser) where email is available..."
+      $sites = Get-SPSite -WebApplication $spWebAppUrl -limit All -ErrorAction SilentlyContinue
+      foreach ($row in $dataTable.Rows) {
+        $userName = [string]$row.UserName
+        $email = [string]$row.Email
+        $first = if ($dataTable.Columns.Contains("FirstName")) { [string]$row.FirstName }  else { $null }
+        $last = if ($dataTable.Columns.Contains("LastName")) { [string]$row.LastName }   else { $null }
+        $display = if ($dataTable.Columns.Contains("DisplayName") -and $row.DisplayName) { [string]$row.DisplayName } else { $userName }
+
+        # FBA claim format: i:0#.f|<membershipProvider>|<userName>
+        Write-Verbose -Message "Processing user: $userName"
+        $login = "i:0#.f|$MembershipProviderName|$userName"
+        $notes = ""
+
+        if ($null -eq $sites) {
+          Write-Warning "No site collections found in Web Application: $spWebAppUrl"
+          break
+        }
+        else {
+          if ($email -and $sites.Count -gt 1) {
+            Write-Verbose -Message "Multiple site collections found in Web Application: $spWebAppUrl. Please wait during update of User Info List..."
+            foreach ($site in $sites) {
+              $web = $site.RootWeb
+              Write-Verbose -Message @"
+Processing site: $($site.Url)
+User: $login
+Mail: $email
+Display: $display
+"@
+              try {
+                $spUser = $web.EnsureUser($login)
+                $status = "UserInfoListSkipped"
+                if ($spUser -and ($spUser.Email -ne $email -or $spUser.Name -ne $display)) {
+                  if ($PSCmdlet.ShouldProcess($login, "Update SPUser (UIL)")) {
+                    Set-SPUser -Identity $login -Web $web.Url -Email $email -DisplayName $display -ErrorAction Stop | Out-Null
+                    $notes = "UserInfoList updated in site: $($site.Url)"
+                    $status = "UserInfoListUpdated"
+                  }
+                }
+              }
+              catch {
+                $status = "UpdatedWithUILWarning"
+                $notes = "UPS ok; UIL update failed: $($_.Exception.Message)"
+              }
+              finally {
+                if ($web) { $web.Dispose() }
+                if ($site) { $site.Dispose() }
+                [void]$tbUserProfileInformation.Add([UserProfileInformation]@{
+                    Login     = $login
+                    UserName  = $userName
+                    Email     = $email
+                    FirstName = $first
+                    LastName  = $last
+                    Display   = $display
+                    Status    = $status
+                    Notes     = $notes
+                  })
+              }
+            }
+          }
+        }
       }
     }
   }

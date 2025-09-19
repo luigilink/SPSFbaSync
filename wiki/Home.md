@@ -15,7 +15,7 @@ SPSFbaSync is a PowerShell script to Synchronize user information (email, displa
   - `-CreateIfMissing` → auto-create missing profiles
   - `-UpdateSiteUserInfo` → sync SPUser email/display name
   - `-WhatIf` → safe dry-run
-- Generates a CSV log of all actions.
+- Generates a json file of all actions.
 
 For details on usage, configuration, and parameters, explore the links below:
 

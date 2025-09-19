@@ -4,7 +4,7 @@
   "ConfigurationName": "PROD",
   "ApplicationName": "contoso",
   "Settings": {
-    "SiteUrl": "https://extranet.contoso.com",
+    "WebApplicationUrl": "https://extranet.contoso.com",
     "SqlConnectionString": "data Source=localhost;Integrated Security=SSPI;Initial Catalog=aspnetdb",
     "SqlMembershipProviderName": "fbamembershipprovider",
     "SqlQuery": "",

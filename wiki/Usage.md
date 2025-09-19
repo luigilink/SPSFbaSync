@@ -16,12 +16,12 @@
 
 ## Parameters
 
-| Parameter         | Description                                                                                                                                                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SiteUrl`         | Target site URL.                                                                                                                                                                                                       |
-| `-ConfigFile`     | Specifies the path to the configuration file.                                                                                                                                                                          |
-| `-Action`         | (Optional) Use the Action parameter equal to Install to add the script in taskscheduler, InstallAccount parameter need to be set. Use the Action parameter equal to Uninstall to remove the script from taskscheduler. |
-| `-InstallAccount` | (Optional) Need parameter InstallAccount whent you use the Action parameter equal to Install.                                                                                                                          |
+| Parameter           | Description                                                                                                                                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WebApplicationUrl` | Target SharePoint Web Application.                                                                                                                                                                                     |
+| `-ConfigFile`       | Specifies the path to the configuration file.                                                                                                                                                                          |
+| `-Action`           | (Optional) Use the Action parameter equal to Install to add the script in taskscheduler, InstallAccount parameter need to be set. Use the Action parameter equal to Uninstall to remove the script from taskscheduler. |
+| `-InstallAccount`   | (Optional) Need parameter InstallAccount whent you use the Action parameter equal to Install.                                                                                                                          |
 
 ## Examples
 

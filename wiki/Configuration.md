@@ -9,7 +9,7 @@ To customize the script for your environment, prepare a JSON configuration file.
   "ConfigurationName": "PROD",
   "ApplicationName": "contoso",
   "Settings": {
-    "SiteUrl": "https://extranet.contoso.com",
+    "WebApplicationUrl": "https://extranet.contoso.com",
     "SqlConnectionString": "data Source=localhost;Integrated Security=SSPI;Initial Catalog=aspnetdb",
     "SqlMembershipProviderName": "fbamembershipprovider",
     "SqlQuery": "",
@@ -32,7 +32,7 @@ The Settings section defines parameters for environment setup:
 
 | Parameter                   | Description                                                                       |
 | --------------------------- | --------------------------------------------------------------------------------- |
-| `SiteUrl`                   | Target site URL.                                                                  |
+| `WebApplicationUrl`         | Target SharePoint Web Application.                                                |
 | `SqlConnectionString`       | Connection string for SQL database access.                                        |
 | `SqlMembershipProviderName` | Name of the SQL membership provider.                                              |
 | `SqlQuery`                  | Optional SQL query to execute.                                                    |
