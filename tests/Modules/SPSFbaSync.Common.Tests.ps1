@@ -57,6 +57,13 @@ Describe 'SPSFbaSync.Common Module' {
         (Test-ModuleManifest -Path $script:moduleManifest).Version | Should -BeGreaterOrEqual ([version]'2.0.0')
     }
 
+    It 'private report helpers are not exported to callers' {
+        $exported = (Get-Module -Name $script:moduleName).ExportedFunctions.Keys
+        foreach ($helper in @('ConvertTo-SPSHtmlEncoded', 'Get-SPSReportHtmlHead', 'Get-SPSReportCardHtml', 'Get-SPSReportHtmlScript')) {
+            $exported | Should -Not -Contain $helper
+        }
+    }
+
     It 'module loads successfully' {
         Get-Module -Name $script:moduleName | Should -Not -BeNullOrEmpty
     }
@@ -66,7 +73,9 @@ Describe 'SPSFbaSync.Common Public Functions' {
 
     $publicFunctions = @(
         'Add-SPSScheduledTask',
+        'Backup-SPSJsonFile',
         'Clear-SPSLogFolder',
+        'Export-SPSFbaSyncReport',
         'Get-SPSInstalledProductVersion',
         'Remove-SPSScheduledTask',
         'Set-SPSUserProfileProperty'
@@ -79,7 +88,9 @@ Describe 'SPSFbaSync.Common Public Functions' {
     It 'manifest FunctionsToExport matches the exported set' {
         $expectedExports = @(
             'Add-SPSScheduledTask',
+            'Backup-SPSJsonFile',
             'Clear-SPSLogFolder',
+            'Export-SPSFbaSyncReport',
             'Get-SPSInstalledProductVersion',
             'Remove-SPSScheduledTask',
             'Set-SPSUserProfileProperty'
