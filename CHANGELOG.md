@@ -3,6 +3,39 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-10
+
+### Added
+
+- SPSFbaSync.Common module (src/Modules/SPSFbaSync.Common) with Public/Private layout,
+  a .psm1 loader and a .psd1 manifest whose ModuleVersion is the single source of truth
+  for the script version.
+- Flat PowerShell data file configuration (src/Config/CONTOSO-PROD.example.psd1) loaded
+  with Import-PowerShellDataFile.
+- Pester test suite (tests/) and PSScriptAnalyzerSettings.psd1.
+- pester.yml workflow running Pester and PSScriptAnalyzer on pull requests.
+- -LogRetentionDays parameter and automatic transcript-log rotation via Clear-SPSLogFolder.
+- Wiki _Sidebar.md and Release-Process.md pages.
+
+### Changed
+
+- BREAKING: restructured scripts/ into src/; the release ZIP now extracts straight to
+  SPSFbaSync.ps1 and Modules\ (no src/ wrapper).
+- BREAKING: configuration migrated from JSON to a flat PowerShell data file (.psd1);
+  -ConfigFile now validates a .psd1 path.
+- Bumped GitHub Actions: checkout@v7, action-gh-release@v3, upload-artifact@v7, with
+  explicit workflow permissions.
+- Rewrote the README to point at the wiki and updated all wiki pages for the new layout.
+- Rewrote .github/CONTRIBUTING.md to point at this project's wiki/issues/discussions.
+
+### Fixed
+
+- Install action now registers the scheduled task with a valid -File argument
+  ($fullScriptPath was undefined).
+- Renamed Set-USPUserProfileProperty to Set-SPSUserProfileProperty (typo).
+- Removed the SPSUpdate-inherited "cumulative update" wording and copy-paste bugs in the
+  README and wiki.
+
 ## [1.1.0] - 2025-09-19
 
 ### Changed
