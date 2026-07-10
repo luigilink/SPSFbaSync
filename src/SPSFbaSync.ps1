@@ -36,6 +36,10 @@
     Number of days of transcript log files to keep in the Logs folder. Defaults to 180.
     Set to 0 to disable pruning.
 
+  .PARAMETER HistoryRetentionDays
+    Number of days of archived result snapshots to keep in the Results\history folder.
+    Defaults to 30. Set to 0 to disable pruning.
+
   .EXAMPLE
     SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1'
     SPSFbaSync.ps1 -Action Install -InstallAccount (Get-Credential) -ConfigFile '.\Config\contoso-PROD.psd1'
@@ -70,7 +74,11 @@ param(
 
   [Parameter()]
   [System.UInt32]
-  $LogRetentionDays = 180 # Number of days of transcript logs to keep
+  $LogRetentionDays = 180, # Number of days of transcript logs to keep
+
+  [Parameter()]
+  [System.UInt32]
+  $HistoryRetentionDays = 30 # Number of days of archived result snapshots to keep
 )
 
 #requires -Version 5.1
@@ -134,16 +142,22 @@ catch {
 $SPSFbaSyncVersion = (Get-Module -Name 'SPSFbaSync.Common').Version.ToString()
 $getDateFormatted = Get-Date -Format yyyy-MM-dd_H-mm
 $spsFbaSyncFileName = "$($Application)-$($ConfigName)_$($getDateFormatted)"
+$resultsBaseName = "$($Application)-$($ConfigName)"
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $pathLogsFolder = Join-Path -Path $scriptRootPath -ChildPath 'Logs'
 $pathResultFolder = Join-Path -Path $scriptRootPath -ChildPath 'Results'
+$pathHistoryFolder = Join-Path -Path $pathResultFolder -ChildPath 'history'
+$pathReportsFolder = Join-Path -Path $scriptRootPath -ChildPath 'Reports'
 
-# Initialize logs and results folders
+# Initialize logs, results and reports folders
 if (-Not (Test-Path -Path $pathLogsFolder)) {
   New-Item -ItemType Directory -Path $pathLogsFolder -Force
 }
 if (-Not (Test-Path -Path $pathResultFolder)) {
   New-Item -ItemType Directory -Path $pathResultFolder -Force
+}
+if (-Not (Test-Path -Path $pathReportsFolder)) {
+  New-Item -ItemType Directory -Path $pathReportsFolder -Force
 }
 
 # Initialize jSON Object
@@ -153,9 +167,10 @@ New-Variable -Name jsonObject `
   -Force
 $jsonObject = [PSCustomObject]@{}
 
-# Define log and result file paths
+# Define log, result and report file paths
 $pathLogFile = Join-Path -Path $pathLogsFolder -ChildPath ($spsFbaSyncFileName + '.log')
-$resultFile = Join-Path -Path $pathResultFolder -ChildPath ($spsFbaSyncFileName + '.json')
+$resultFile = Join-Path -Path $pathResultFolder -ChildPath ($resultsBaseName + '.json')
+$reportFile = Join-Path -Path $pathReportsFolder -ChildPath ($resultsBaseName + '.html')
 $DateStarted = Get-Date
 $psVersion = $PSVersionTable.PSVersion.ToString()
 
@@ -513,8 +528,22 @@ Display: $display
     $jsonObject | Add-Member -MemberType NoteProperty `
       -Name UserProfileInformation `
       -Value $tbUserProfileInformation
+
+    # Archive the previous results snapshot before overwriting, then prune old snapshots.
+    $null = Backup-SPSJsonFile -Path $resultFile -HistoryFolder $pathHistoryFolder
+    Clear-SPSLogFolder -Path $pathHistoryFolder -Retention $HistoryRetentionDays -Extension '*.json'
+
+    # Write the fresh results JSON (stable name).
     $jsonObject | ConvertTo-Json | Set-Content -Path $resultFile -Force
-    Write-Verbose -Message "Completed. Result written to: $resultFile"
+    Write-Output "[Results] $resultFile"
+
+    # Render the HTML sync report.
+    $null = Export-SPSFbaSyncReport -Result $tbUserProfileInformation `
+      -OutputPath $reportFile `
+      -Application $Application `
+      -Environment $ConfigName `
+      -Version $SPSFbaSyncVersion
+    Write-Output "[Report]  $reportFile"
   }
 }
 #endregion

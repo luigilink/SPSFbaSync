@@ -17,11 +17,12 @@ SPSFbaSync is a PowerShell script to synchronize user information (email, displa
   - `IncludeLockedOut` / `IncludeNotApproved` -> widen the default membership query
 - Supports `-WhatIf` for a safe dry-run.
 - Manages its own Windows scheduled task via the `-Action Install` / `-Action Uninstall` parameter.
-- Generates a JSON result file of all actions and rotates its own transcript logs.
+- Generates a JSON result file and a self-contained **HTML sync report** of all actions, and rotates its own transcript logs.
 
 For details on usage, configuration, and parameters, explore the links below:
 
 - [Getting Started](./Getting-Started)
 - [Configuration](./Configuration)
 - [Usage](./Usage)
+- [Reports & Audit](./Reports)
 - [Release Process](./Release-Process)

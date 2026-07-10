@@ -35,6 +35,7 @@ For usage, configuration, and getting-started information, visit the
 - [Getting Started](https://github.com/luigilink/SPSFbaSync/wiki/Getting-Started)
 - [Configuration](https://github.com/luigilink/SPSFbaSync/wiki/Configuration)
 - [Usage](https://github.com/luigilink/SPSFbaSync/wiki/Usage)
+- [Reports & Audit](https://github.com/luigilink/SPSFbaSync/wiki/Reports)
 - [Release Process](https://github.com/luigilink/SPSFbaSync/wiki/Release-Process)
 
 ## Changelog

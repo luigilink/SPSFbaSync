@@ -122,6 +122,32 @@ Describe 'SPSFbaSync.ps1 Parameters' {
         }
         $logParam | Should -Not -BeNullOrEmpty
     }
+
+    It 'Should expose a HistoryRetentionDays parameter' {
+        $histParam = $script:paramBlock.Parameters | Where-Object {
+            $_.Name.VariablePath.UserPath -eq 'HistoryRetentionDays'
+        }
+        $histParam | Should -Not -BeNullOrEmpty
+    }
+}
+
+Describe 'SPSFbaSync.ps1 report wiring' {
+
+    It 'archives the previous results with Backup-SPSJsonFile' {
+        $script:scriptContent | Should -Match 'Backup-SPSJsonFile'
+    }
+
+    It 'renders the report with Export-SPSFbaSyncReport' {
+        $script:scriptContent | Should -Match 'Export-SPSFbaSyncReport'
+    }
+
+    It 'prunes result-history snapshots with Clear-SPSLogFolder' {
+        $script:scriptContent | Should -Match "Clear-SPSLogFolder -Path \`$pathHistoryFolder"
+    }
+
+    It 'writes the results JSON under a stable (non-timestamped) name' {
+        $script:scriptContent | Should -Match "\`$resultsBaseName = "
+    }
 }
 
 Describe 'SPSFbaSync.ps1 behaviour wiring' {

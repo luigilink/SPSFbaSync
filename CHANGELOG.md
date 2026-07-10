@@ -3,6 +3,23 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-10
+
+### Added
+
+- HTML sync report generated on each default run (Reports/<Application>-<Environment>.html),
+  produced by the new public function Export-SPSFbaSyncReport (summary cards + interactive,
+  filterable/sortable per-user table, self-contained/offline).
+- Stable result naming with history: the JSON result is written to a stable
+  Results/<Application>-<Environment>.json, and the previous snapshot is archived to
+  Results/history/ (via Backup-SPSJsonFile) before each overwrite.
+- -HistoryRetentionDays parameter (default 30) to prune archived JSON snapshots.
+- Wiki Reports.md page and sidebar entry.
+
+### Changed
+
+- SPSFbaSync.Common now exports Backup-SPSJsonFile and Export-SPSFbaSyncReport.
+
 ## [2.0.0] - 2026-07-10
 
 ### Added
