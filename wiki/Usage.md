@@ -2,54 +2,60 @@
 
 ## Overview
 
-`SPSFbaSync.ps1` is a PowerShell script to Synchronize user information (email, display name, etc.) from a SQL Membership Provider (Forms Based Authentication) database to SharePoint User Profile Service.
+`SPSFbaSync.ps1` synchronizes user information (email, display name, etc.) from a SQL Membership Provider (Forms Based Authentication) database to the SharePoint User Profile Service, and optionally to the User Information List.
 
 ## Prerequisites
 
 - PowerShell 5.1 or later.
-- Necessary permissions to access the SharePoint Farm.
-- Ensure the script is placed in a directory accessible by the user.
-- Administrative privileges on the SharePoint Server
-- SharePoint farm with User Profile Service Application configured.
-- SQL Membership Provider database accessible
-- Read access to SQL membership Provider database
+- Administrative privileges on the SharePoint Server.
+- SharePoint farm with a User Profile Service Application configured.
+- Access to the SQL Membership Provider (FBA) database.
 
 ## Parameters
 
-| Parameter           | Description                                                                                                                                                                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WebApplicationUrl` | Target SharePoint Web Application.                                                                                                                                                                                     |
-| `-ConfigFile`       | Specifies the path to the configuration file.                                                                                                                                                                          |
-| `-Action`           | (Optional) Use the Action parameter equal to Install to add the script in taskscheduler, InstallAccount parameter need to be set. Use the Action parameter equal to Uninstall to remove the script from taskscheduler. |
-| `-InstallAccount`   | (Optional) Need parameter InstallAccount whent you use the Action parameter equal to Install.                                                                                                                          |
+| Parameter           | Description                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-ConfigFile`       | **Mandatory.** Path to the `.psd1` configuration file.                                                                                                                                 |
+| `-Action`           | (Optional) `Default` runs the sync (default). `Install` registers the scheduled task (requires `-InstallAccount`). `Uninstall` removes the scheduled task.                             |
+| `-InstallAccount`   | (Optional) Credential required when `-Action Install` is used. The account runs the scheduled task.                                                                                    |
+| `-LogRetentionDays` | (Optional) Number of days of transcript logs to keep in the `Logs` folder. Defaults to 180. Set to 0 to disable pruning.                                                               |
+
+> Configuration values such as `WebApplicationUrl`, `SqlConnectionString`, and `SqlMembershipProviderName` are defined in the `.psd1` file (see [Configuration](./Configuration)), not passed as script parameters.
 
 ## Examples
 
-### Example 1: Default Usage Example
+### Example 1: Default sync run
 
 ```powershell
-.\SPSFbaSync.ps1 -ConfigFile 'contoso-PROD.json'
+.\SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1'
 ```
 
-### Example 2: Installation Usage Example
+### Example 2: Install the scheduled task
 
 ```powershell
-.\SPSFbaSync.ps1 -ConfigFile 'contoso-PROD.json' -Action Install -InstallAccount (Get-Credential)
+.\SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1' -Action Install -InstallAccount (Get-Credential)
 ```
 
-### Example 3: Uninstallation Usage Example
+### Example 3: Uninstall the scheduled task
 
 ```powershell
-.\SPSFbaSync.ps1 -ConfigFile 'contoso-PROD.json' -Action Uninstall
+.\SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1' -Action Uninstall
+```
+
+### Example 4: Dry-run
+
+```powershell
+.\SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1' -WhatIf
 ```
 
 ## Logging
 
-The script logs the status of each task, including success or failure, and saves it to the specified log file or the default location.
+The script writes a transcript log per run to the `Logs` folder and a JSON result file (one row per processed user, with a Status such as `Updated`, `NoChange`, `MissingProfile`, or `Error`) to the `Results` folder. Old transcript logs are pruned based on `-LogRetentionDays`.
 
 ## Error Handling
 
-- Ensure the provided credentials have access to the SharePoint Farm.
+- Ensure the provided credentials have access to the SharePoint Farm and the SQL membership database.
+- Critical configuration values (`WebApplicationUrl`, `SqlConnectionString`, `SqlMembershipProviderName`) are validated before the sync runs.
 
 ## Notes
 
@@ -57,4 +63,4 @@ The script logs the status of each task, including success or failure, and saves
 
 ## Support
 
-For issues or questions, please contact the script maintainer or refer to the project documentation.
+For issues or questions, open an [issue](https://github.com/luigilink/SPSFbaSync/issues) or start a [discussion](https://github.com/luigilink/SPSFbaSync/discussions).

@@ -1,45 +1,52 @@
 # Configuration
 
-To customize the script for your environment, prepare a JSON configuration file. Below is a sample structure:
+To customize the script for your environment, prepare a PowerShell data file (`.psd1`). Copy
+`Config\CONTOSO-PROD.example.psd1` and adjust the values. Below is the structure:
 
-```json
-{
-  "$schema": "http://json-schema.org/schema#",
-  "contentVersion": "1.0.0.0",
-  "ConfigurationName": "PROD",
-  "ApplicationName": "contoso",
-  "Settings": {
-    "WebApplicationUrl": "https://extranet.contoso.com",
-    "SqlConnectionString": "data Source=localhost;Integrated Security=SSPI;Initial Catalog=aspnetdb",
-    "SqlMembershipProviderName": "fbamembershipprovider",
-    "SqlQuery": "",
-    "CreateIfMissing": true,
-    "UpdateUserInfoList": true,
-    "IncludeLockedOut": false,
-    "IncludeNotApproved": false
-  }
+```powershell
+@{
+    # Logical environment name (e.g. PROD, PPRD, DEV). Used in log/result file names.
+    ConfigurationName         = 'PROD'
+
+    # Application / customer short name. Used in log/result file names.
+    ApplicationName           = 'contoso'
+
+    # Target SharePoint Web Application URL.
+    WebApplicationUrl         = 'https://extranet.contoso.com'
+
+    # Connection string to the ASP.NET SQL Membership (FBA) database.
+    SqlConnectionString       = 'data Source=localhost;Integrated Security=SSPI;Initial Catalog=aspnetdb'
+
+    # Name of the SQL membership provider (used to build the FBA claim).
+    SqlMembershipProviderName = 'fbamembershipprovider'
+
+    # Optional custom SQL query. Leave empty to use the built-in query.
+    SqlQuery                  = ''
+
+    CreateIfMissing           = $true
+    UpdateUserInfoList        = $true
+    IncludeLockedOut          = $false
+    IncludeNotApproved        = $false
 }
 ```
 
 ## Configuration and Application
 
-- `ConfigurationName`: Populates the Environment PowerShell variable.
-- `ApplicationName`: Populates the Application PowerShell variable.
+- `ConfigurationName`: Populates the Environment PowerShell variable (used in log/result file names).
+- `ApplicationName`: Populates the Application PowerShell variable (used in log/result file names).
 
 ## Settings
 
-The Settings section defines parameters for environment setup:
-
 | Parameter                   | Description                                                                       |
 | --------------------------- | --------------------------------------------------------------------------------- |
-| `WebApplicationUrl`         | Target SharePoint Web Application.                                                |
+| `WebApplicationUrl`         | Target SharePoint Web Application.                                                 |
 | `SqlConnectionString`       | Connection string for SQL database access.                                        |
 | `SqlMembershipProviderName` | Name of the SQL membership provider.                                              |
-| `SqlQuery`                  | Optional SQL query to execute.                                                    |
-| `CreateIfMissing`           | If true, add missing user profiles in User Profile Service Application.           |
-| `UpdateUserInfoList`        | If true, updates the user info list in SharePoint Site.                           |
-| `IncludeLockedOut`          | If true, includes locked-out users from SqlMembershipProvider Database.           |
-| `IncludeNotApproved`        | If true, includes users who are not approved from SqlMembershipProvider Database. |
+| `SqlQuery`                  | Optional SQL query to execute. Leave empty to use the built-in query.             |
+| `CreateIfMissing`           | If `$true`, add missing user profiles in the User Profile Service Application.     |
+| `UpdateUserInfoList`        | If `$true`, updates the User Information List across the web application sites.    |
+| `IncludeLockedOut`          | If `$true`, includes locked-out users from the SQL Membership Provider database.   |
+| `IncludeNotApproved`        | If `$true`, includes not-approved users from the SQL Membership Provider database. |
 
 ## Next Step
 

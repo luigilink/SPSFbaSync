@@ -1,18 +1,31 @@
-function Get-SPSInstalledProductVersion {
-    [OutputType([System.Version])]
-    param ()
-
-    $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
-    $fullPath = Get-Item $pathToSearch -ErrorAction SilentlyContinue | Sort-Object { $_.Directory } -Descending | Select-Object -First 1
-    if ($null -eq $fullPath) {
-        Write-Error -Message 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
-    }
-    else {
-        return ([System.Diagnostics.FileVersionInfo]::GetVersionInfo($fullPath.FullName)).FileVersion
-    }
-}
-
 function Add-SPSScheduledTask {
+    <#
+        .SYNOPSIS
+        Registers the SPSFbaSync script as a Windows scheduled task.
+
+        .DESCRIPTION
+        Creates (if needed) the target Task Scheduler folder and registers a task that
+        runs PowerShell with the supplied arguments under the provided credential. If a
+        task with the same name already exists, it is left untouched.
+
+        .PARAMETER ExecuteAsCredential
+        Credential the task runs as.
+
+        .PARAMETER ActionArguments
+        Command-line arguments passed to powershell.exe.
+
+        .PARAMETER Name
+        Name of the scheduled task.
+
+        .PARAMETER Description
+        Optional task description.
+
+        .PARAMETER TaskPath
+        Task Scheduler folder. Defaults to 'SharePoint'.
+
+        .EXAMPLE
+        Add-SPSScheduledTask -Name 'SPSFbaSync' -ActionArguments $args -ExecuteAsCredential (Get-Credential)
+    #>
     param
     (
         [Parameter(Mandatory = $true)]
@@ -105,88 +118,5 @@ Exception: $($_.Exception.Message)
 "@
             Write-Error -Message $catchMessage # Handle any errors during task registration
         }
-    }
-}
-
-function Remove-SPSScheduledTask {
-    param (
-        [Parameter(Mandatory = $true)]
-        [System.String]
-        $Name, # Name of the scheduled task to be removed
-
-        [Parameter()]
-        [System.String]
-        $TaskPath = 'SharePoint' # Path of the task folder
-    )
-
-    # Connect to the local TaskScheduler Service
-    $TaskSvc = New-Object -ComObject ('Schedule.service')
-    $TaskSvc.Connect($env:COMPUTERNAME)
-
-    # Check if the folder exists
-    try {
-        $TaskFolder = $TaskSvc.GetFolder($TaskPath) # Attempt to get the task folder
-    }
-    catch {
-        Write-Output "Task folder '$TaskPath' does not exist."
-    }
-
-    # Retrieve the scheduled task
-    $getScheduledTask = $TaskFolder.GetTasks(0) | Where-Object -FilterScript {
-        $_.Name -eq $Name
-    }
-
-    if ($null -eq $getScheduledTask) {
-        Write-Warning -Message 'Scheduled Task already removed - skipping.' # Task not found
-    }
-    else {
-        Write-Output '--------------------------------------------------------------'
-        Write-Output "Removing $($Name) script in Task Scheduler Service ..."
-        try {
-            $TaskFolder.DeleteTask($Name, $null) # Remove the task
-            Write-Output "Successfully removed $($Name) script from Task Scheduler Service"
-        }
-        catch {
-            $catchMessage = @"
-An error occurred while removing the script in scheduled task: $($Name)
-Exception: $($_.Exception.Message)
-"@
-            Write-Error -Message $catchMessage # Handle any errors during task removal
-        }
-    }
-}
-
-function Set-USPUserProfileProperty {
-    param(
-        [Parameter(Mandatory = $true)]
-        [Microsoft.Office.Server.UserProfiles.UserProfile]
-        $UserProfile,
-
-        [Parameter(Mandatory = $true)]
-        [System.String]
-        $PropertyInternalName,
-
-        [Parameter()]
-        [System.String]
-        $DesiredValue
-    )
-    try {
-        $currentValue = [string]$UserProfile[$PropertyInternalName].Value
-        if ([string]::IsNullOrWhiteSpace($DesiredValue)) { return $false }
-        if ($currentValue -ne $DesiredValue) {
-            $UserProfile[$PropertyInternalName].Value = $DesiredValue
-            return $true
-        }
-        return $false
-    }
-    catch {
-        $catchMessage = @"
-An error occurred while setting the UserProfile Property.
-PropertyInternalName: $($PropertyInternalName)
-CurrentValue: $($currentValue)
-DesiredValue: $($DesiredValue)
-Exception: $($_.Exception.Message)
-"@
-        Write-Error -Message $catchMessage # Handle any errors during task removal
     }
 }
