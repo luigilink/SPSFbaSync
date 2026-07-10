@@ -19,6 +19,7 @@
 | `-Action`           | (Optional) `Default` runs the sync (default). `Install` registers the scheduled task (requires `-InstallAccount`). `Uninstall` removes the scheduled task.                             |
 | `-InstallAccount`   | (Optional) Credential required when `-Action Install` is used. The account runs the scheduled task.                                                                                    |
 | `-LogRetentionDays` | (Optional) Number of days of transcript logs to keep in the `Logs` folder. Defaults to 180. Set to 0 to disable pruning.                                                               |
+| `-HistoryRetentionDays` | (Optional) Number of days of archived JSON result snapshots to keep in `Results\history`. Defaults to 30. Set to 0 to disable pruning.                                            |
 
 > Configuration values such as `WebApplicationUrl`, `SqlConnectionString`, and `SqlMembershipProviderName` are defined in the `.psd1` file (see [Configuration](./Configuration)), not passed as script parameters.
 
@@ -50,7 +51,7 @@
 
 ## Logging
 
-The script writes a transcript log per run to the `Logs` folder and a JSON result file (one row per processed user, with a Status such as `Updated`, `NoChange`, `MissingProfile`, or `Error`) to the `Results` folder. Old transcript logs are pruned based on `-LogRetentionDays`.
+The script writes a transcript log per run to the `Logs` folder and a JSON result file (one row per processed user, with a Status such as `Updated`, `NoChange`, `MissingProfile`, or `Error`) to the `Results` folder. From version 2.1.0 it also generates a self-contained HTML report in the `Reports` folder — see [Reports & Audit](./Reports). Old transcript logs are pruned based on `-LogRetentionDays`, and archived JSON snapshots based on `-HistoryRetentionDays`.
 
 ## Error Handling
 
