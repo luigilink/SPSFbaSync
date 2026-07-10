@@ -1,7 +1,7 @@
 <#
   .SYNOPSIS
     Syncs user info (email/name properties) from a SQL Membership Provider (FBA) database
-    to SharePoint 2016 User Profile Service, and optionally to the User Information List (SPUser).
+    to the SharePoint User Profile Service, and optionally to the User Information List (SPUser).
 
   .DESCRIPTION
     - Reads from dbo.vw_aspnet_MembershipUsers to get UserName and Email.
@@ -9,48 +9,55 @@
     - Updates UPS properties (WorkEmail, PreferredName, FirstName, LastName).
     - Optionally updates the User Information List (SPUser) via Set-SPUser.
 
+    Shared logic lives in the SPSFbaSync.Common module (src/Modules/SPSFbaSync.Common); the
+    script version is sourced from that module's manifest (ModuleVersion).
+    Compatible with PowerShell version 5.1 and later.
+
   .PARAMETER ConfigFile
-  Need parameter ConfigFile, example:
-  PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -ConfigFile 'contoso-PROD.json'
+    Specifies the path to the PowerShell data (.psd1) configuration file.
+    PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1'
 
   .PARAMETER Action
-  Use the Action parameter equal to Install if you want to add the SPSFbaSync script in taskscheduler
-  InstallAccount parameter need to be set
-  PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -Action Install -InstallAccount (Get-Credential)
+    Use the Action parameter equal to Install if you want to add the SPSFbaSync script in taskscheduler.
+    InstallAccount parameter needs to be set.
+    PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -Action Install -InstallAccount (Get-Credential) -ConfigFile '.\Config\contoso-PROD.psd1'
 
-  Use the Action parameter equal to Uninstall if you want to remove the SPSFbaSync script from taskscheduler
-  PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -Action Uninstall
+    Use the Action parameter equal to Uninstall if you want to remove the SPSFbaSync script from taskscheduler.
+    PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -Action Uninstall
 
   .PARAMETER InstallAccount
-  Need parameter InstallAccount when you use the Action Install parameter
-  PS D:\> E:\SCRIPT\SPSFbaSync.ps1 -Install -InstallAccount (Get-Credential) -ConfigFile 'contoso-PROD.json'
-  The account must have the following rights:
-    - Local Admin on the server where the script will be executed
-    - Farm Admin and Full control on User Profile Service Application
-    - SQL Reader on the Membership database
+    Need parameter InstallAccount when you use the Action Install parameter.
+    The account must have the following rights:
+      - Local Admin on the server where the script will be executed
+      - Farm Admin and Full control on User Profile Service Application
+      - SQL Reader on the Membership database
+
+  .PARAMETER LogRetentionDays
+    Number of days of transcript log files to keep in the Logs folder. Defaults to 180.
+    Set to 0 to disable pruning.
 
   .EXAMPLE
-  SPSFbaSync.ps1 -Action Install -InstallAccount (Get-Credential) -ConfigFile 'contoso-PROD.json'
-  SPSFbaSync.ps1 -Action Uninstall -ConfigFile 'contoso-PROD.json'
-  SPSFbaSync.ps1 -ConfigFile 'contoso-PROD.json'
+    SPSFbaSync.ps1 -ConfigFile '.\Config\contoso-PROD.psd1'
+    SPSFbaSync.ps1 -Action Install -InstallAccount (Get-Credential) -ConfigFile '.\Config\contoso-PROD.psd1'
+    SPSFbaSync.ps1 -Action Uninstall -ConfigFile '.\Config\contoso-PROD.psd1'
 
   .NOTES
-  FileName:	SPSFbaSync.ps1
-  Author:		Jean-Cyril DROUHIN
-  Date:		September 19, 2025
-  Version:	1.1.0
+    FileName:	SPSFbaSync.ps1
+    Author:		luigilink (Jean-Cyril DROUHIN)
+    Date:		July 10, 2026
+    Version:	Defined by the SPSFbaSync.Common module manifest (ModuleVersion)
 
   .LINK
-  https://spjc.fr/
-  https://github.com/luigilink/SPSFbaSync
+    https://spjc.fr/
+    https://github.com/luigilink/SPSFbaSync
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
   [Parameter(Position = 0, Mandatory = $true)]
-  [ValidateScript({ (Test-Path $_) -and ($_ -like '*.json') })]
+  [ValidateScript({ (Test-Path $_) -and ($_ -like '*.psd1') })]
   [System.String]
-  $ConfigFile, # Path to the JSON config file
+  $ConfigFile, # Path to the PowerShell data (.psd1) config file
 
   [Parameter(Position = 1)]
   [validateSet('Install', 'Uninstall', 'Default', IgnoreCase = $true)]
@@ -59,8 +66,14 @@ param(
 
   [Parameter(Position = 2)]
   [System.Management.Automation.PSCredential]
-  $InstallAccount # Credential for the InstallAccount (when Action is Install)
+  $InstallAccount, # Credential for the InstallAccount (when Action is Install)
+
+  [Parameter()]
+  [System.UInt32]
+  $LogRetentionDays = 180 # Number of days of transcript logs to keep
 )
+
+#requires -Version 5.1
 
 #region Initialization
 # Clear the host console
@@ -69,17 +82,20 @@ Clear-Host
 # Set the window title
 $Host.UI.RawUI.WindowTitle = "SPSFbaSync script running on $env:COMPUTERNAME"
 
-# Define the path to the helper module
-$helperModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'modules'
+# Resolve the full path of this script (used for the scheduled task action)
+$fullScriptPath = $PSCommandPath
 
-# Import the helper module
+# Define the path to the helper module
+$scriptRootPath = $PSScriptRoot
+$script:HelperModulePath = Join-Path -Path $scriptRootPath -ChildPath 'Modules'
+
+# Import the helper module (SPSFbaSync.Common)
 try {
-  Import-Module -Name (Join-Path -Path $helperModulePath -ChildPath 'util.psm1') -Force
+  Import-Module -Name (Join-Path -Path $script:HelperModulePath -ChildPath 'SPSFbaSync.Common\SPSFbaSync.Common.psd1') -Force -ErrorAction Stop
 }
 catch {
-  # Handle errors during Import of helper module
   Write-Error -Message @"
-Failed to import helper module from path: $($helperModulePath)
+Failed to import SPSFbaSync.Common module from path: $($script:HelperModulePath)
 Exception: $_
 "@
   Exit
@@ -93,17 +109,17 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 # Load the configuration file
 try {
   if (Test-Path $ConfigFile) {
-    $jsonEnvCfg = Get-Content $ConfigFile | ConvertFrom-Json
-    $Application = $jsonEnvCfg.ApplicationName
-    $ConfigName = $jsonEnvCfg.ConfigurationName
-    $spWebAppUrl = $jsonEnvCfg.Settings.WebApplicationUrl
-    $SqlConnectionString = $jsonEnvCfg.Settings.SqlConnectionString
-    $MembershipProviderName = $jsonEnvCfg.Settings.SqlMembershipProviderName
-    $SqlQuery = $jsonEnvCfg.Settings.SqlQuery
-    $CreateIfMissing = $jsonEnvCfg.Settings.CreateIfMissing
-    $UpdateUserInfoList = $jsonEnvCfg.Settings.UpdateUserInfoList
-    $IncludeLockedOut = $jsonEnvCfg.Settings.IncludeLockedOut
-    $IncludeNotApproved = $jsonEnvCfg.Settings.IncludeNotApproved
+    $EnvironmentConfig = Import-PowerShellDataFile -Path $ConfigFile
+    $Application = $EnvironmentConfig.ApplicationName
+    $ConfigName = $EnvironmentConfig.ConfigurationName
+    $spWebAppUrl = $EnvironmentConfig.WebApplicationUrl
+    $SqlConnectionString = $EnvironmentConfig.SqlConnectionString
+    $MembershipProviderName = $EnvironmentConfig.SqlMembershipProviderName
+    $SqlQuery = $EnvironmentConfig.SqlQuery
+    $CreateIfMissing = $EnvironmentConfig.CreateIfMissing
+    $UpdateUserInfoList = $EnvironmentConfig.UpdateUserInfoList
+    $IncludeLockedOut = $EnvironmentConfig.IncludeLockedOut
+    $IncludeNotApproved = $EnvironmentConfig.IncludeNotApproved
   }
   else {
     Throw "Configuration file '$ConfigFile' not found."
@@ -115,12 +131,12 @@ catch {
 }
 
 # Define variables
-$SPSFbaSyncVersion = '1.1.0'
+$SPSFbaSyncVersion = (Get-Module -Name 'SPSFbaSync.Common').Version.ToString()
 $getDateFormatted = Get-Date -Format yyyy-MM-dd_H-mm
 $spsFbaSyncFileName = "$($Application)-$($ConfigName)_$($getDateFormatted)"
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
-$pathLogsFolder = Join-Path -Path $PSScriptRoot -ChildPath 'Logs'
-$pathResultFolder = Join-Path -Path $PSScriptRoot -ChildPath 'Results'
+$pathLogsFolder = Join-Path -Path $scriptRootPath -ChildPath 'Logs'
+$pathResultFolder = Join-Path -Path $scriptRootPath -ChildPath 'Results'
 
 # Initialize logs and results folders
 if (-Not (Test-Path -Path $pathLogsFolder)) {
@@ -164,13 +180,13 @@ Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" -ArgumentList '/
 # 1. Handle Action parameter (Install, Uninstall, Default)
 switch ($Action) {
   'Uninstall' {
-    # Remove scheduled Task for Update Full Script
+    # Remove scheduled Task for SPSFbaSync
     try {
       Write-Verbose -Message 'Removing Scheduled Task SPSFbaSync in SharePoint Task Path'
       Remove-SPSScheduledTask -Name 'SPSFbaSync'
     }
     catch {
-      # Handle errors during Remove scheduled Task for Update Full Script
+      # Handle errors during Remove scheduled Task for SPSFbaSync
       Write-Error -Message @"
 Failed to Remove Scheduled Task SPSFbaSync in SharePoint Task Path
 Exception: $_
@@ -197,18 +213,18 @@ Exception: $_
         exit
       }
       else {
-        # Add scheduled Task for Update Full Script
+        # Add scheduled Task for SPSFbaSync
         try {
           # Initialize ActionArguments parameter
           $ActionArguments = "-ExecutionPolicy Bypass -File `"$($fullScriptPath)`" -ConfigFile `"$($ConfigFile)`" -Verbose"
           Write-Verbose -Message 'Adding Scheduled Task SPSFbaSync in SharePoint Task Path'
           Add-SPSScheduledTask -Name 'SPSFbaSync' `
-            -Description 'Scheduled Task for Update SharePoint Server after installation of cumulative update' `
+            -Description 'Scheduled Task to synchronize FBA membership users into the SharePoint User Profile Service' `
             -ActionArguments $ActionArguments `
             -ExecuteAsCredential $InstallAccount
         }
         catch {
-          # Handle errors during Add scheduled Task for Update Full Script
+          # Handle errors during Add scheduled Task for SPSFbaSync
           Write-Error -Message @"
 Failed to Add Scheduled Task SPSFbaSync in SharePoint Task Path
 Exception: $_
@@ -330,7 +346,7 @@ Exception: $($_.Exception.Message)
       Exit
     }
 
-    # 5. Get SharePoint Site collecion and User Profile Manager context
+    # 5. Get SharePoint Site collection and User Profile Manager context
     Write-Verbose -Message "Connecting to SharePoint site: $spWebAppUrl"
     try {
       $site = Get-SPSite $spWebAppUrl -ErrorAction SilentlyContinue
@@ -391,15 +407,15 @@ Exception: $($_.Exception.Message)
         }
         else {
           $status = "MissingProfile"
-          $notes = "UPS profile not found; use -CreateIfMissing to auto-provision."
+          $notes = "UPS profile not found; use CreateIfMissing to auto-provision."
         }
 
         if ($null -ne $UserProfile) {
           $changed = $false
-          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "WorkEmail"     -DesiredValue $email) -or $changed
-          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "FirstName"     -DesiredValue $first) -or $changed
-          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "LastName"      -DesiredValue $last) -or $changed
-          $changed = (Set-USPUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "PreferredName" -DesiredValue $display) -or $changed
+          $changed = (Set-SPSUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "WorkEmail"     -DesiredValue $email) -or $changed
+          $changed = (Set-SPSUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "FirstName"     -DesiredValue $first) -or $changed
+          $changed = (Set-SPSUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "LastName"      -DesiredValue $last) -or $changed
+          $changed = (Set-SPSUserProfileProperty -UserProfile $UserProfile -PropertyInternalName "PreferredName" -DesiredValue $display) -or $changed
 
           if ($changed) {
             if ($PSCmdlet.ShouldProcess($login, "Commit UPS changes")) {
@@ -493,17 +509,22 @@ Display: $display
         }
       }
     }
+
+    $jsonObject | Add-Member -MemberType NoteProperty `
+      -Name UserProfileInformation `
+      -Value $tbUserProfileInformation
+    $jsonObject | ConvertTo-Json | Set-Content -Path $resultFile -Force
+    Write-Verbose -Message "Completed. Result written to: $resultFile"
   }
 }
-
-$jsonObject | Add-Member -MemberType NoteProperty `
-  -Name UserProfileInformation `
-  -Value $tbUserProfileInformation
-$jsonObject | ConvertTo-Json | Set-Content -Path $resultFile -Force
-Write-Verbose -Message "Completed. Result written to: $resultFile"
 #endregion
 
 # Clean-Up
+Trap { Continue }
+
+# Prune old transcript logs based on the retention window
+Clear-SPSLogFolder -Path $pathLogsFolder -Retention $LogRetentionDays -Extension '*.log'
+
 $DateEnded = Get-Date
 Write-Output '-----------------------------------------------'
 Write-Output "| SPSFbaSync Script Completed"
