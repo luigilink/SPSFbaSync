@@ -1,4 +1,4 @@
-<#
+﻿<#
   .SYNOPSIS
     Syncs user info (email/name properties) from a SQL Membership Provider (FBA) database
     to the SharePoint User Profile Service, and optionally to the User Information List (SPUser).

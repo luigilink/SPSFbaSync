@@ -1,4 +1,4 @@
-function Export-SPSFbaSyncReport {
+﻿function Export-SPSFbaSyncReport {
     <#
         .SYNOPSIS
         Renders a sync result set (or a results JSON file) into a self-contained HTML report.

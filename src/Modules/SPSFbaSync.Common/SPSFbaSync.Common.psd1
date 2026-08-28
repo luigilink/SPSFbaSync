@@ -1,4 +1,4 @@
-@{
+﻿@{
     RootModule        = 'SPSFbaSync.Common.psm1'
     ModuleVersion     = '3.0.0'
     GUID              = '77fa42f2-31e4-48e5-ad82-512f27282793'

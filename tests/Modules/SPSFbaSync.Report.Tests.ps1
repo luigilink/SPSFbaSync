@@ -1,4 +1,4 @@
-# Pester tests for the SPSFbaSync HTML sync report (Export-SPSFbaSyncReport).
+﻿# Pester tests for the SPSFbaSync HTML sync report (Export-SPSFbaSyncReport).
 
 BeforeAll {
     $repoRoot = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent

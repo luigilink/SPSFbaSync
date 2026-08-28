@@ -1,4 +1,4 @@
-function Set-SPSUserProfileProperty {
+﻿function Set-SPSUserProfileProperty {
     <#
         .SYNOPSIS
         Sets a single User Profile property to a desired value if it differs.

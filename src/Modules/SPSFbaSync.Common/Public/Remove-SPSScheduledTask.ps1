@@ -1,4 +1,4 @@
-function Remove-SPSScheduledTask {
+﻿function Remove-SPSScheduledTask {
     <#
         .SYNOPSIS
         Removes the SPSFbaSync scheduled task.
