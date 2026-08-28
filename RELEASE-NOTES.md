@@ -1,20 +1,24 @@
 # SPSFbaSync - Release Notes
 
-## [2.1.0] - 2026-07-10
+## [3.0.0] - 2026-08-28
 
-### Added
+### Removed
 
-- HTML sync report: each default run now generates a self-contained
-  `Reports\<Application>-<Environment>.html` (summary cards + interactive per-user table),
-  produced by the new public function `Export-SPSFbaSyncReport`.
-- Stable result naming with history: the JSON result is written to a stable
-  `Results\<Application>-<Environment>.json`, and the previous snapshot is archived to
-  `Results\history\` (via `Backup-SPSJsonFile`) before each overwrite.
-- `-HistoryRetentionDays` parameter (default 30) to prune archived JSON snapshots.
-- Wiki `Reports.md` page documenting the report and retention.
+- **BREAKING:** dropped support for SharePoint Server 2016 and 2019 (both reached end of
+  support on 14 July 2026). SPSFbaSync now targets SharePoint Server Subscription Edition only.
+- Removed the product-version detection and the deprecated
+  `Add-PSSnapin Microsoft.SharePoint.PowerShell` path from the entry script.
 
 ### Changed
 
-- `SPSFbaSync.Common` now exports `Backup-SPSJsonFile` and `Export-SPSFbaSyncReport`.
+- The entry script now guards on "is SharePoint installed?" (throwing an explicit error when
+  it is not) and loads the `SharePointServer` module idempotently.
+- `Get-SPSInstalledProductVersion` is now a presence guard returning `$null` when SharePoint
+  is not installed.
+
+### Migration
+
+- Users still running SharePoint Server 2016 or 2019 must stay on the previous major release
+  (**v2.1.0**), which retains the PSSnapin path.
 
 A full list of changes in each version can be found in the [change log](CHANGELOG.md)

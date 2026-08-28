@@ -53,8 +53,8 @@ Describe 'SPSFbaSync.Common Module' {
         (Test-ModuleManifest -Path $script:moduleManifest).Version | Should -Not -BeNullOrEmpty
     }
 
-    It 'manifest ModuleVersion is 2.0.0 or higher' {
-        (Test-ModuleManifest -Path $script:moduleManifest).Version | Should -BeGreaterOrEqual ([version]'2.0.0')
+    It 'manifest ModuleVersion is 3.0.0 or higher' {
+        (Test-ModuleManifest -Path $script:moduleManifest).Version | Should -BeGreaterOrEqual ([version]'3.0.0')
     }
 
     It 'private report helpers are not exported to callers' {

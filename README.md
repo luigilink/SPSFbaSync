@@ -21,6 +21,7 @@ Windows scheduled task so the sync can run unattended.
 ## Requirements
 
 - PowerShell 5.1 or later
+- **SharePoint Server Subscription Edition** (SharePoint Server 2016 and 2019 reached end of support on 14 July 2026; for those versions, use the previous major release [v2.1.0](https://github.com/luigilink/SPSFbaSync/releases/tag/v2.1.0))
 - Administrative privileges on the SharePoint Server
 - A SharePoint farm with a User Profile Service Application configured
 - Access to the SQL Membership Provider (FBA) database

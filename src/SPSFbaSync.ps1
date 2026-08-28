@@ -267,25 +267,22 @@ Exception: $_
       Stop-Transcript
       Exit
     }
-    # 1. Load SharePoint Powershell Snapin or Import-Module
+    # 1. Ensure SharePoint is installed and load the SharePointServer module
     try {
       $installedVersion = Get-SPSInstalledProductVersion
-      Write-Verbose -Message "Installed SharePoint Product Version: $($installedVersion)"
-      if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
-        if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
-          Write-Verbose -Message "Loading SharePoint PowerShell snap-in..."
-          Add-PSSnapin Microsoft.SharePoint.PowerShell
-        }
+      if ($null -eq $installedVersion) {
+        Throw "SharePoint Server does not appear to be installed on $($env:COMPUTERNAME)."
       }
-      else {
-        Write-Verbose -Message "Importing SharePointServer Module..."
+      Write-Verbose -Message "Installed SharePoint Product Version: $($installedVersion)"
+      Write-Verbose -Message "Importing SharePointServer module..."
+      if (-not (Get-Module -Name SharePointServer)) {
         Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue
       }
     }
     catch {
-      # Handle errors during retrieval of Installed Product Version
+      # Handle errors during loading of the SharePointServer module
       Write-Error -Message @"
-Failed to load SharePoint snapin/module for $($env:COMPUTERNAME)
+Failed to load the SharePointServer module for $($env:COMPUTERNAME)
 Exception: $_
 "@
       Stop-Transcript
