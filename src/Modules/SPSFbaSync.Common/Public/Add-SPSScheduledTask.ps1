@@ -1,4 +1,4 @@
-function Add-SPSScheduledTask {
+﻿function Add-SPSScheduledTask {
     <#
         .SYNOPSIS
         Registers the SPSFbaSync script as a Windows scheduled task.

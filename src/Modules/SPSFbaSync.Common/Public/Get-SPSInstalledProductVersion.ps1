@@ -1,4 +1,4 @@
-function Get-SPSInstalledProductVersion {
+﻿function Get-SPSInstalledProductVersion {
     <#
         .SYNOPSIS
         Returns the installed SharePoint product version, or $null when SharePoint is not installed.

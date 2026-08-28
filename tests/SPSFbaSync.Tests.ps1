@@ -1,4 +1,4 @@
-# Pester tests for SPSFbaSync.ps1
+﻿# Pester tests for SPSFbaSync.ps1
 # Resolve repo root - works on CI/CD (GitHub Actions) and local runs
 
 BeforeAll {
