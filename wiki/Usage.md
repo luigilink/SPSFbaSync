@@ -7,6 +7,7 @@
 ## Prerequisites
 
 - PowerShell 5.1 or later.
+- SharePoint Server Subscription Edition (2016 and 2019 reached end of support on 14 July 2026; for those versions, use the previous major release v2.1.0).
 - Administrative privileges on the SharePoint Server.
 - SharePoint farm with a User Profile Service Application configured.
 - Access to the SQL Membership Provider (FBA) database.
